@@ -1,3 +1,11 @@
+import os
+from pathlib import Path
+try:
+    BASE_DIR = Path(__file__).resolve().parent
+except NameError:
+    BASE_DIR = Path.cwd()
+os.chdir(BASE_DIR)
+
 import torch
 import pickle
 import argparse
@@ -22,13 +30,13 @@ parser.add_argument('--dataset', type=str, default='polblogs')
 parser.add_argument('--num_samples', type=int, default=8)
 parser.add_argument('--seed', type=int, default=0)
 parser.add_argument('--checkpoint', type=int, default=5500)
-parser.add_argument('--data_name', type=str, default='snap')
+parser.add_argument('--data_name', type=str, default='youtube')
 
 eval_args = parser.parse_args()
 
 torch.manual_seed(eval_args.seed)
 
-log_dir = f'/data2/network/edge/wandb/{eval_args.dataset}/multinomial_diffusion/multistep/{eval_args.run_name}' 
+log_dir = f'./wandb/{eval_args.dataset}/multinomial_diffusion/multistep/{eval_args.run_name}' 
 path_args = '{}/args.pickle'.format(log_dir)
 path_check = '{}/check/checkpoint_{}.pt'.format(log_dir, eval_args.checkpoint-1)
 
@@ -69,13 +77,6 @@ with torch.no_grad():
         pyg_data = batched.to_data_list()[0]
 
         G = pyg.utils.to_networkx(pyg_data, to_undirected=True)
-        # if G.number_of_nodes() > 0:
-        #     try:
-        #         largest_cc = max(nx.connected_components(G), key=len)
-        #         G = G.subgraph(largest_cc).copy()
-        #     except ValueError:
-        #         pass
-
         pyg_datas.append(pyg_data.cpu())
         generated_nxgraphs.append(G)
 

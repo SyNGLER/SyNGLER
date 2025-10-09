@@ -111,7 +111,7 @@ def add_data_args(parser):
     # Data params
     parser.add_argument('--dataset', type=str)
     parser.add_argument('--data_path', type=str, default=None,
-                        help='Path to SNAP graph (.edgelist/.txt/.npy/.pkl) when dataset==snap')
+                        help='Path to real-world graph (.edgelist/.txt/.npy/.pkl) when dataset==real')
     # Train params
     parser.add_argument('--batch_size', type=int, default=1)
     parser.add_argument('--num_iter', type=int, default=32)
