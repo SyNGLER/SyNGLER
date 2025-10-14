@@ -1,0 +1,83 @@
+---
+exp_name: GRAN
+exp_dir: exp/GRAN
+runner: GranRunner
+use_horovod: false
+use_gpu: true
+device: cuda:0
+gpus: [0]
+seed: 1234
+dataset:
+  loader_name: GRANData
+  name: custom_npy        
+  data_path: data/       
+  source_dir: datasets/dblp/
+  filename_glob: "seed=0.pkl"
+
+  sample_from_P: true
+  prob_threshold: 0.5
+
+  node_order: DFS
+  train_ratio: 1.0
+  dev_ratio: 0.0
+  num_subgraph_batch: 1
+  num_fwd_pass: 1
+  has_node_feat: false
+  is_save_split: false
+  is_sample_subgraph: true
+  is_overwrite_precompute: true
+model:
+  name: GRANMixtureBernoulli
+  num_mix_component: 20
+  is_sym: true
+  block_size: 1
+  sample_stride: 1
+  max_num_nodes: 500
+  hidden_dim: 128
+  embedding_dim: 128
+  num_GNN_layers: 7
+  num_GNN_prop: 1
+  num_canonical_order: 1
+  dimension_reduce: true  
+  has_attention: true
+  edge_weight: 1.0e+0
+  
+train:
+  optimizer: Adam  
+  lr_decay: 0.1
+  lr_decay_epoch: [100000000] # no decay
+  num_workers: 0
+  max_epoch: 500 # original:50000
+  batch_size: 1
+  display_iter: 10
+  snapshot_epoch: 100
+  valid_epoch: 50
+  lr: 1.0e-4
+  wd: 0.0e-4
+  momentum: 0.9
+  shuffle: true
+  is_resume: false
+  resume_epoch: 5000 
+  resume_dir: # exp/GRAN/your_exp_folder
+  resume_model: model_snapshot_0005000.pth
+test:  
+  batch_size: 1
+  num_workers: 0
+  num_test_gen: 200 # number of generated samples  
+  is_vis: false
+  is_single_plot: false # visualize `num_vis` samples in a single image
+  is_test_ER: false # test Erdos-Renyi baseline
+  num_vis: 20
+  vis_num_row: 5
+  better_vis: false  
+  test_model_dir: exp/GRAN/GRANMixtureBernoulli_128
+  test_model_name: model_snapshot_0005000.pth
+  return_prob: true
+  target_num_nodes: 1481
+  only_gen: true 
+  gen_out_dir: gran-sample/seed=0/
+
+  gen_format: npy
+  gen_prefix: rep
+  gen_start_index: 0
+  run_after_train: false
