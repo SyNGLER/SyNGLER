@@ -178,10 +178,6 @@ This repository builds upon several existing implementations:
 - [VGAE](https://github.com/tkipf/gae) for variational graph auto-encoders
 - [ForestDiffusion](https://github.com/forest-diffusion/ForestDiffusion) for diffusion-based sampling
 
-## License
-
-This project is licensed under the MIT License - see the individual method directories for specific license information.
-
 ## Contact
 
 For questions and support, please open an issue in this repository.
