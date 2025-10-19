@@ -290,9 +290,9 @@ class GRANMixtureBernoulli(nn.Module):
 
           # reset to discard overlap generation
           A[:, ii:, :] = .0
-          P[:, ii:, :] = .0   # NEW: 概率矩阵缓存
+          P[:, ii:, :] = .0
           A = torch.tril(A, diagonal=-1)
-          P = torch.tril(P, diagonal=-1)   # NEW: 概率矩阵缓存
+          P = torch.tril(P, diagonal=-1)
 
           if ii >= K:
             if self.dimension_reduce:
@@ -366,7 +366,7 @@ class GRANMixtureBernoulli(nn.Module):
 
           prob = torch.stack(prob, dim=0)
           A[:, ii:jj, :jj] = torch.bernoulli(prob[:, :jj - ii, :])
-          P[:, ii:jj, :jj] = prob[:, :jj - ii, :]   # NEW: 记录 P
+          P[:, ii:jj, :jj] = prob[:, :jj - ii, :]
 
         ### make it symmetric
         if self.is_sym:
@@ -454,26 +454,26 @@ class GRANMixtureBernoulli(nn.Module):
       return adj_loss
       
     else:
-        # 1) 采样（return_prob=True 时返回的是 P 矩阵，否则是 A 矩阵）
+        # 1) Sampling (returns P matrix when return_prob=True, otherwise A matrix)
         A = self._sampling(batch_size, return_prob=return_prob)
 
-        # 2) sample number of nodes —— 兼容 numpy / torch，且归一化到 1
+        # 2) Sample number of nodes - compatible with numpy/torch and normalized to 1
         pmf = num_nodes_pmf
         if isinstance(pmf, np.ndarray):
             pmf = torch.from_numpy(pmf)
         pmf = pmf.to(self.device, dtype=torch.float32)
         pmf_sum = pmf.sum()
         if pmf_sum <= 0:
-            # 防御：如果意外为 0，就默认均匀分布
+            # Defense: if accidentally 0, use uniform distribution as default
             pmf = torch.ones_like(pmf) / pmf.numel()
         else:
             pmf = pmf / pmf_sum
 
-        # multinomial 返回的是 [0..N_max-1] 的索引；+1 把它变成节点数（1..N_max）
+        # multinomial returns [0..N_max-1] indices; +1 converts to node count (1..N_max)
         idx = torch.multinomial(pmf, batch_size, replacement=True)  # shape [B]
         num_nodes = idx + 1
 
-        # 3) 按每个样本的节点数裁剪（注意把张量变成 python int）
+        # 3) Crop according to each sample's node count (note: convert tensor to python int)
         A_list = [
             A[ii, :int(n.item()), :int(n.item())] for ii, n in enumerate(num_nodes)
         ]

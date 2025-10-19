@@ -63,13 +63,12 @@ test:
   num_vis: 20
   vis_num_row: 5 # visualize `num_vis` samples in `vis_num_row` rows
   better_vis: false  
-  test_model_dir: /home/ynbu/Network/GRAN/exp/GRAN/GRANMixtureBernoulli_DD_2025-Aug-17-06-28-18_1609902
+  test_model_dir: 
   test_model_name: model_snapshot_0001100.pth
 
-  target_num_nodes: 500    # ← 每张都固定 500 节点（配合下面补丁）
-  only_gen: true           # ← 只生成并落盘 .npy（配合下面补丁）
-  gen_out_dir: /home/ynbu/Network/GRAN/outputs/500node_P   # 绝对路径；若写相对路径如 "gen_500",
-                                                                  # 则会保存到 <save_dir>/gen_500 下
-  gen_format: npy      # 可选: npy | npz | edgelist
-  gen_prefix: dd500    # 文件名前缀，默认为 "gen"
-  gen_start_index: 0   # 起始编号，默认 0
+  target_num_nodes: 500
+  only_gen: true
+  gen_out_dir: 
+  gen_format: npy
+  gen_prefix: dd500
+  gen_start_index: 0

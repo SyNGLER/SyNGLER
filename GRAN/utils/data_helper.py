@@ -181,7 +181,7 @@ def create_graphs(graph_type, data_dir='data', noise=10.0, seed=1234, **kwargs):
     rng_fixed_seed = int(kwargs.get('rng_fixed_seed', 0))
 
     if not files:
-      raise FileNotFoundError(f"[create_graphs] 未匹配到任何文件：{pattern}")
+      raise FileNotFoundError(f"[create_graphs] No files found matching pattern: {pattern}")
 
     for p in files:
       G = _load_graph_from_custom_pkl(
@@ -266,7 +266,7 @@ def create_graphs(graph_type, data_dir='data', noise=10.0, seed=1234, **kwargs):
         node_attributes=False,
         graph_labels=True)
   else:
-    raise ValueError(f"[create_graphs] 未知 graph_type: {graph_type}")
+    raise ValueError(f"[create_graphs] Unknown graph_type: {graph_type}")
 
   if len(graphs) > 0:
     num_nodes = [gg.number_of_nodes() for gg in graphs]

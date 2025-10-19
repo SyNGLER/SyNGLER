@@ -76,7 +76,6 @@ test:
   target_num_nodes: 1222
   only_gen: true
   gen_out_dir: gran-sample/seed=0/
-                                                                  # 则会保存到 <save_dir>/gen_500 下
   gen_format: npy
   gen_prefix: rep
   gen_start_index: 0

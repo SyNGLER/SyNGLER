@@ -18,9 +18,6 @@ from tqdm import tqdm
 import argparse
 import sys
 
-sys.path.append("/home/ynbu/Network/dde-network")
-os.chdir("/home/ynbu/Network/dde-network")
-print("Current working dir:", os.getcwd())
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 from ForestDiffusion import ForestDiffusionModel as ForestFlowModel

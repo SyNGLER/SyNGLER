@@ -50,7 +50,7 @@ def _load_adj_any(path: str):
         if A.ndim != 2 or A.shape[0] != A.shape[1]:
             raise ValueError(f"{path} is not a square adjacency matrix")
         A = (A > 0).astype(np.int8)
-        A = ((A + A.T) > 0).astype(np.int8)  # 保对称
+        A = ((A + A.T) > 0).astype(np.int8)  # Ensure symmetry
         np.fill_diagonal(A, 0)
         return A
     elif ext in (".pkl", ".pickle"):
