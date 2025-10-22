@@ -86,6 +86,17 @@ cd Latent-Space-Model/simulated_data
 python run.py --config ../config/default.json
 ```
 
+### 4. Evaluation Framework
+
+To evaluate and compare different methods:
+
+```bash
+cd synthetic
+jupyter notebook evaluation_demo.ipynb
+```
+
+The evaluation framework provides comprehensive analysis using multiple network metrics and statistical distances. See `synthetic/EVALUATION_SETUP.md` for detailed usage instructions.
+
 ## Repository Structure
 
 ```
@@ -122,8 +133,12 @@ SyNGLER/
 │   ├── youtube/                # YouTube dataset
 │   ├── yelp/                   # Yelp dataset
 │   └── polblogs/               # PolBlogs dataset
-└── synthetic/                  # Generated synthetic data
-    └── evaluation/             # Evaluation results
+└── synthetic/                  # Generated synthetic data and evaluation
+    ├── evaluation/             # Evaluation framework
+    │   └── utils.py           # Core evaluation functions
+    ├── evaluation_demo.ipynb  # Evaluation demo notebook
+    ├── EVALUATION_SETUP.md    # Evaluation setup guide
+    └── README.md              # Evaluation documentation
 ```
 
 ## Datasets
@@ -153,6 +168,46 @@ synthetic/
 │   ├── vgae-sample/           # VGAE samples
 │   └── edge-sample/           # EDGE samples
 ```
+
+## Evaluation Framework
+
+We provide a comprehensive evaluation framework for systematic comparison of different network generation methods. The evaluation framework supports multiple baselines and datasets with detailed analysis through various network metrics and statistical distances.
+
+### Quick Start
+
+```bash
+cd synthetic
+jupyter notebook evaluation_demo.ipynb
+```
+
+### Supported Baselines
+
+- **SyNGLER-Diff**: Diffusion-based generation
+- **SyNGLER-Res**: Residual-based generation  
+- **GRAN**: Graph Recurrent Attention Networks
+- **EDGE**: Edge-based generation
+- **VGAE**: Variational Graph Auto-Encoders
+- **ER**: Erdos-Renyi random graphs
+
+### Evaluation Metrics
+
+1. **Triangle Density** - Measures clustering in the network
+2. **Global Clustering Coefficient** - Measures overall transitivity
+3. **Degree Centrality Energy Distance** - Measures degree distribution preservation
+4. **Eigenvalues Energy Distance** - Measures spectral properties preservation
+
+### File Structure
+
+```
+synthetic/
+├── evaluation/
+│   └── utils.py                    # Core evaluation functions
+├── evaluation_demo.ipynb          # Full evaluation demo
+├── EVALUATION_SETUP.md           # Setup and usage guide
+└── README.md                     # This file
+```
+
+For detailed evaluation documentation, see `synthetic/EVALUATION_SETUP.md`.
 
 ## Citation
 
