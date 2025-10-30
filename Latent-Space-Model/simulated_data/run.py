@@ -23,14 +23,14 @@ flags.DEFINE_string("run_dir", "../../datasets/simulation/run/", "Base directory
 flags.DEFINE_float("tau", 0.0, "Default correlation level if CSV has no tau")
 flags.DEFINE_float("sigma_init", 0.1, "Noise std used for init")
 
-def load_generated_data(generator_dir, n, r, p, seed, sparse_level, tau):
-    fn = f"n={n}_r={r}_sparse={sparse_level}_tau={tau}/seed={seed}.pkl"
+def load_generated_data(generator_dir, n, r, p, seed, sparse_level):
+    fn = f"n={n}_r={r}_sparse={sparse_level}/seed={seed}.pkl"
     filename = os.path.join(generator_dir, fn)
     with open(filename, "rb") as f:
         loader = pickle.load(f)
     return loader
 
-def run_one(config, row, generator_dir, run_dir, sigma_init=0.1, tau_default=0.0):
+def run_one(config, row, generator_dir, run_dir, sigma_init=0.1):
     try:
         n = int(row["n"])
         r = int(row["r"])
@@ -41,7 +41,6 @@ def run_one(config, row, generator_dir, run_dir, sigma_init=0.1, tau_default=0.0
     except Exception as e:
         raise ValueError(f"Error: {row}") from e
 
-    tau = float(row["tau"]) if ("tau" in row and str(row["tau"]) != "") else tau_default
     rep_index = seed
     p = config["p"]
     alpha_enable = config["alpha_enable"]
@@ -54,9 +53,9 @@ def run_one(config, row, generator_dir, run_dir, sigma_init=0.1, tau_default=0.0
         rho = -np.log(n) * 0.0
     else:
         rho = -np.log(n) * sparse_level
-    print(f"Running with n={n}, r={r}, sparse_level={sparse_level}, tau={tau}, seed={seed}")
+    print(f"Running with n={n}, r={r}, sparse_level={sparse_level}, seed={seed}")
 
-    loader = load_generated_data(generator_dir, n, r, p, seed, sparse_level, tau)
+    loader = load_generated_data(generator_dir, n, r, p, seed, sparse_level)
     data = loader["data"]
     beta_true = loader["beta_true"]
     var_phi_oracle = loader["var_phi_oracle"]
@@ -121,10 +120,7 @@ def run_one(config, row, generator_dir, run_dir, sigma_init=0.1, tau_default=0.0
             "var_alpha_1_est_error": np.abs(var_phi_est[0, -1, -1] - var_phi_oracle[0, -1, -1]),
         }
 
-    if tau != 0:
-        savedir = os.path.join(run_dir, f"n={n}_r={r}_sparse={sparse_level}_tau={tau}")
-    else:
-        savedir = os.path.join(run_dir, f"n={n}_r={r}_sparse={sparse_level}")
+    savedir = os.path.join(run_dir, f"n={n}_r={r}_sparse={sparse_level}")
     os.makedirs(savedir, exist_ok=True)
 
     out_fn = os.path.join(savedir, f"seed={rep_index}.pkl")
@@ -147,8 +143,7 @@ def main(_):
             row=row,
             generator_dir=FLAGS.generator_dir,
             run_dir=FLAGS.run_dir,
-            sigma_init=FLAGS.sigma_init,
-            tau_default=FLAGS.tau,
+            sigma_init=FLAGS.sigma_init
         )
 
 if __name__ == "__main__":

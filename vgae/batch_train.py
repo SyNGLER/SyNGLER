@@ -12,18 +12,17 @@ nodes = [500,1000,1500]
 r_list = [2,3,4]
 seeds = range(200)
 sparse = 0.0
-tau = 0.0
 model = 'VGAE'
-num_epoch = 200
+num_epoch = 2
 learning_rate = 0.01
-base_data_dir = '../datasets/simulation'
+base_data_dir = '../datasets/simulation/generator'
 output_base_dir = '../synthetic/simulation/vgae-sample'
 
 for n in nodes:
     for r in r_list:
         for seed in seeds:
-            data_path = os.path.join(base_data_dir, f'n={n}_r={r}_sparse={sparse}_tau={tau}', f'seed={seed}.pkl')
-            output_dir = os.path.join(output_base_dir, f'n={n}_r={r}_sparse={sparse}_tau={tau}', f'seed={seed}')
+            data_path = os.path.join(base_data_dir, f'n={n}_r={r}_sparse={sparse}', f'seed={seed}.pkl')
+            output_dir = os.path.join(output_base_dir, f'n={n}_r={r}_sparse={sparse}', f'seed={seed}')
             os.makedirs(output_dir, exist_ok=True)
             command = [
                 'python', 'train.py',

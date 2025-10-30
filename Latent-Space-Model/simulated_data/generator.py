@@ -23,8 +23,7 @@ import LSM_source as LSM
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string("config", "../config/default.json", "Path to the configuration file")
-flags.DEFINE_string("grid_file", "../config/generate_r=2_sparse=0.0.csv", "CSV with columns n,r[,seed]")
-flags.DEFINE_float("tau", 0.0, "correlation level")
+flags.DEFINE_string("grid_file", "../config/generate_n=500_r=2_sparse=0.0.csv", "CSV with columns n,r[,seed]")
 
 def ClippedGaussianMixture(n, r):
     sample = ClippedGaussianCovariateSampler(
@@ -37,12 +36,11 @@ def ClippedGaussianMixture(n, r):
     sample = sample / np.sqrt(np.linalg.norm(sample @ sample.T, "fro") / n)
     return sample
 
-def run_one(config, n, r, seed,sparse_level, tau_override=None):
+def run_one(config, n, r, seed,sparse_level):
     print(n,np.log(n),sparse_level)
     p = config["p"]
     alpha_enable = config["alpha_enable"]
     Z_enable = config["Z_enable"]
-    tau = tau_override if tau_override is not None else config.get("tau", 0.0)
     print(type(n))
     np.random.seed(seed)
     rho = -np.log(n) * sparse_level
@@ -59,8 +57,7 @@ def run_one(config, n, r, seed,sparse_level, tau_override=None):
     data.RefreshLatentVar(
         lambda n_: ClippedGaussianMixture(n_, r),
         lambda n_: UniformCovariateSampler(n_, 1, -0.5, 0.5),
-        Z_standardize=True,
-        tau=tau,
+        Z_standardize=True
     )
 
     eta_0 = 0.5
@@ -72,7 +69,7 @@ def run_one(config, n, r, seed,sparse_level, tau_override=None):
     X_adjusted = data.X - LSM.adjustment_functional(data, lr=eta_adj)
     var_phi_oracle = var_phi_functional_primary(data)
 
-    save_dir = f"../../datasets/simulation/generator/n={n}_r={r}_sparse={sparse_level}_tau={tau}/"
+    save_dir = f"../../datasets/simulation/generator/n={n}_r={r}_sparse={sparse_level}/"
     os.makedirs(save_dir, exist_ok=True)
     out_path = os.path.join(
         save_dir,
@@ -101,12 +98,10 @@ def main(_):
                 raise ValueError(f"Missing/Invalid n/r in csv row {i+2}") from e
             seed = row.get("seed")
             seed = int(seed) if (seed is not None and seed != "") else (config.get("seed", 2025) + i)
-            tau_csv = row.get("tau")
-            tau_val = float(tau_csv) if (tau_csv is not None and tau_csv != "") else FLAGS.tau
-            rows.append((n, r, seed, tau_val))
+            rows.append((n, r, seed))
 
-    for (n, r, seed, tau_val) in tqdm(rows, desc=f"Generating:", unit="file"):
-        run_one(config, n, r, seed, sparse_level, tau_override=tau_val)
+    for (n, r, seed) in tqdm(rows, desc=f"Generating:", unit="file"):
+        run_one(config, n, r, seed, sparse_level)
     print("All data generation complete.")
 if __name__ == "__main__":
     app.run(main)

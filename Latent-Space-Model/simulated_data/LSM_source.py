@@ -84,7 +84,7 @@ class DataGenerator:
         self.act = act
         self.sparsity = sparsity
     
-    def RefreshLatentVar(self, Z_sampler, alpha_sampler, Z_standardize = False, tau = 0.0):
+    def RefreshLatentVar(self, Z_sampler, alpha_sampler, Z_standardize = False):
         
         if self.Z_enable:
             Z = Z_sampler(self.n)
@@ -95,7 +95,7 @@ class DataGenerator:
         # Construct ZZT such that ZZT[i, j, r] = Z[i, r] + Z[j, r] for each r 
         for k in range(self.p):
             # Compute the outer sum Z[:,k] + Z[:,k]^T as a matrix
-            self.X[:, :, k] = (1 - tau) * self.X[:, :, k] + tau * np.outer(Z[:,k],Z[:,k])
+            self.X[:, :, k] = self.X[:, :, k]
 
         self.X = symmetrization(self.X)
         Theta += np.einsum('ijk, k -> ij', self.X, self.beta)

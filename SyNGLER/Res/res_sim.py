@@ -22,7 +22,7 @@ REP_RANGE = range(0, 200)
 for n in N_RANGE:
     for r in R_RANGE:
         input_base_path = f'../../datasets/simulation/run/n={n}_r={r}_sparse={sparse_level}/'
-        output_base_path = f'../../synthetic/simulation/Res-sample/n={n}_r={r}_sparse={sparse_level}_tau=0.0/'
+        output_base_path = f'../../synthetic/simulation/Res-sample/n={n}_r={r}_sparse={sparse_level}/'
 
         for seed in SEED_RANGE:
             input_file_path = os.path.join(input_base_path, f'seed={seed}.pkl')

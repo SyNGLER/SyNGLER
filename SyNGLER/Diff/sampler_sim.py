@@ -38,7 +38,7 @@ XGB_KW = dict(
     n_jobs=-1,
 )
 
-def load_run_pkl(n, r, sparse_level, tau, seed):
+def load_run_pkl(n, r, sparse_level, seed):
     dir_ = os.path.join(GEN_BASE, f"n={n}_r={r}_sparse={sparse_level}")
     fn = os.path.join(dir_, f"seed={seed}.pkl")
     with open(fn, "rb") as f:
@@ -60,11 +60,10 @@ def main(grid_csv):
             r = int(row["r"])
             seed = int(row["seed"])
             sparse_level = float(row.get("sparse_level", 0.0))
-            tau = float(row.get("tau", 0.0))
-            jobs.append((n, r, seed, sparse_level, tau))
+            jobs.append((n, r, seed, sparse_level))
 
-    for (n, r, seed, sparse_level, tau) in tqdm(jobs, desc="Datasets", unit="job"):
-        X = load_run_pkl(n, r, sparse_level, tau, seed)
+    for (n, r, seed, sparse_level) in tqdm(jobs, desc="Datasets", unit="job"):
+        X = load_run_pkl(n, r, sparse_level, seed)
         y_dummy = np.zeros(X.shape[0])
 
         forest_model = ForestFlowModel(
@@ -82,7 +81,7 @@ def main(grid_csv):
 
         out_dir = os.path.join(
             SAVE_BASE,
-            f"n={n}_r={r}_sparse={sparse_level}_tau={tau}/seed={seed}"
+            f"n={n}_r={r}_sparse={sparse_level}/seed={seed}"
         )
         ensure_dir(out_dir)
 
@@ -107,6 +106,6 @@ def main(grid_csv):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--grid_csv", type=str, required=True,
-                        help="Path to CSV file containing n,r,seed,sparse_level,tau")
+                        help="Path to CSV file containing n,r,seed,sparse_level")
     args = parser.parse_args()
     main(args.grid_csv)
