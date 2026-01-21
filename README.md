@@ -209,21 +209,6 @@ synthetic/
 
 For detailed evaluation documentation, see `synthetic/EVALUATION_SETUP.md`.
 
-## Citation
-
-If you use this code in your research, please cite:
-
-```bibtex
-@inproceedings{syngler2025,
-  title={Efficient Synthetic Network Generation via Latent Embedding Reconstruction},
-  author={[Authors]},
-  booktitle={OpenReview},
-  year={2025},
-  url={https://openreview.net/forum?id=JtL7kCe32S}
-}
-```
-
-**Paper Link**: https://openreview.net/forum?id=JtL7kCe32S
 
 ## Acknowledgments
 
