@@ -7,7 +7,7 @@ import numpy as np
 import scipy.sparse as sp
 from sklearn.metrics import average_precision_score, roc_auc_score
 
-from latent_inference import inference_all_in_one
+from lsm_inference import fit_lsm
 
 
 DEFAULT_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -61,19 +61,10 @@ def reconstruct_A_full(Z12, alpha):
     return A_hat
 
 
-def reconstruct_X_full(Z12, Z3, Lhat, mu):
-    if Z3 is not None and Z3.size > 0:
-        Z_all = np.hstack([Z12, Z3])
-    else:
-        Z_all = Z12
-    return mu[None, :] + Z_all @ Lhat.T
-
-
-def evaluate_reconstruction_error(A, A_hat, X, X_hat):
+def evaluate_network_reconstruction_error(A, A_hat):
     A_true = A.toarray().astype(float) if sp.issparse(A) else A.astype(float)
     rel_err_A = np.linalg.norm(A_true - A_hat, "fro") / np.linalg.norm(A_true, "fro")
-    rel_err_X = np.linalg.norm(X - X_hat, "fro") / np.linalg.norm(X, "fro")
-    return rel_err_A, rel_err_X
+    return rel_err_A
 
 
 def split_edges(A, test_ratio=0.1, seed=42):
@@ -105,13 +96,21 @@ def split_edges(A, test_ratio=0.1, seed=42):
     return A_train, test_pos, np.array(neg_edges)
 
 
-def run_link_prediction(A, X, variance_target=0.8):
+def run_link_prediction(A, r=5, seed=0, eta_0=0.1, tau=0.0, use_gpu=False, covariate_dim=2, n_iter=500000):
     A_train, test_pos, test_neg = split_edges(A, test_ratio=0.1)
-    dat_train = {"A": A_train, "Y": X, "n": A.shape[0], "p": X.shape[1]}
-    res = inference_all_in_one(dat_train, variance_target=variance_target, use_sparse=True)
+    res = fit_lsm(
+        A_train.toarray(),
+        r=r,
+        seed=seed,
+        eta_0=eta_0,
+        tau=tau,
+        use_gpu=use_gpu,
+        covariate_dim=covariate_dim,
+        n_iter=n_iter,
+    )
 
-    Z12 = res["Z12hat"]
-    alpha = res["alpha_hat"]
+    Z12 = res["model_Z"]
+    alpha = res["model_alpha"]
 
     def get_scores(edge_list):
         scores = []
@@ -133,12 +132,6 @@ def parse_args():
     parser.add_argument("--input", default=DEFAULT_DATA_PATH, help="Processed Cora .npz path.")
     parser.add_argument("--output", default=DEFAULT_OUTPUT_PATH, help="Evaluation result .npz path.")
     parser.add_argument(
-        "--variance-target",
-        type=float,
-        default=0.8,
-        help="Variance target used by latent dimension selection.",
-    )
-    parser.add_argument(
         "--plot-singular-values",
         action="store_true",
         help="Save a singular-value plot alongside the output file.",
@@ -148,6 +141,13 @@ def parse_args():
         action="store_true",
         help="Skip link prediction and only run reconstruction metrics.",
     )
+    parser.add_argument("--r", type=int, default=5, help="Latent dimension for LSM inference.")
+    parser.add_argument("--seed", type=int, default=0, help="Random seed for LSM inference.")
+    parser.add_argument("--eta-0", type=float, default=0.1, help="Base learning-rate scale for LSM PGD.")
+    parser.add_argument("--tau", type=float, default=0.0, help="SVD threshold used in LSM initialization.")
+    parser.add_argument("--use-gpu", action="store_true", help="Use CuPy GPU acceleration when available.")
+    parser.add_argument("--covariate-dim", type=int, default=2, help="Dummy covariate dimension used by LSM backend.")
+    parser.add_argument("--n-iter", type=int, default=500000, help="Maximum PGD iterations for LSM inference.")
     return parser.parse_args()
 
 
@@ -164,38 +164,41 @@ def main():
         plot_and_save_singular_values(A, X, plot_path)
         print(f"Saved singular value plot to {plot_path}")
 
-    dat = {"A": A, "Y": X, "n": n, "p": p}
-    start = time.time()
-    res = inference_all_in_one(dat, d=None, max_Z3=10, use_sparse=True, variance_target=args.variance_target)
-    elapsed = time.time() - start
-    print(f"Inference finished in {elapsed:.2f} seconds")
-
-    Z12_hat = res["Z12hat"]
-    Z3_hat = res["Z3hat"]
-    L_hat = res["Lhat"]
-    mu_hat = res["mu_hat"]
-    alpha_hat = res["alpha_hat"]
+    data = np.load(args.input, allow_pickle=True)
+    Z12_hat = data["Z12"]
+    alpha_hat = data["alpha"]
+    elapsed = None
 
     A_hat = reconstruct_A_full(Z12_hat, alpha_hat)
-    X_hat = reconstruct_X_full(Z12_hat, Z3_hat, L_hat, mu_hat)
-    err_A, err_X = evaluate_reconstruction_error(A, A_hat, X, X_hat)
+    err_A = evaluate_network_reconstruction_error(A, A_hat)
 
     auc = None
     ap = None
     if not args.skip_link_prediction:
-        auc, ap = run_link_prediction(A, X, variance_target=args.variance_target)
+        start = time.time()
+        auc, ap = run_link_prediction(
+            A,
+            r=args.r,
+            seed=args.seed,
+            eta_0=args.eta_0,
+            tau=args.tau,
+            use_gpu=args.use_gpu,
+            covariate_dim=args.covariate_dim,
+            n_iter=args.n_iter,
+        )
+        elapsed = time.time() - start
         print(f"Link prediction AUC={auc:.4f}, AP={ap:.4f}")
 
     np.savez(
         args.output,
         Z12=Z12_hat,
-        Z3=np.array([]) if Z3_hat is None else Z3_hat,
-        L=L_hat,
-        mu=mu_hat,
+        Z3=np.array([]),
+        L=np.zeros((X.shape[1], 0), dtype=np.float32),
+        mu=np.mean(X, axis=0).astype(np.float32),
         alpha=alpha_hat,
         metrics={
             "err_A": err_A,
-            "err_X": err_X,
+            "err_X": None,
             "auc": auc,
             "ap": ap,
             "elapsed_seconds": elapsed,
@@ -203,7 +206,7 @@ def main():
     )
 
     print(f"Network reconstruction error: {err_A:.4f}")
-    print(f"Attribute reconstruction error: {err_X:.4f}")
+    print("Attribute reconstruction error: unavailable for the LSM-only inference path")
     print(f"Saved evaluation results to {args.output}")
 
 

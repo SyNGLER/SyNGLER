@@ -1,13 +1,13 @@
 # SyNGLER: Efficient Synthetic Network Generation via Latent Embedding Reconstruction
 
-This repository contains the implementation of **SyNGLER** (Efficient Synthetic Network Generation via Latent Embedding Reconstruction) along with baseline methods including GRAN, VGAE, and EDGE for graph generation tasks. It also includes an attributed-network pipeline for the Cora dataset with latent inference, evaluation, and multiple resampling backends.
+This repository contains the implementation of **SyNGLER** (Efficient Synthetic Network Generation via Latent Embedding Reconstruction) along with baseline methods including GRAN, VGAE, and EDGE for graph generation tasks. It also includes an attributed-network pipeline for the Cora dataset with LSM-based network inference, attribute-side latent inference, evaluation, and multiple resampling backends.
 
 ## Overview
 
 SyNGLER is a novel approach for generating synthetic networks using latent embedding reconstruction combined with advanced sampling techniques. The repository provides a comprehensive framework for:
 
 - **SyNGLER Method**: Our proposed approach using latent embedding reconstruction with diffusion and resampling techniques
-- **Attributed Network Pipeline**: Cora preprocessing, joint latent inference, reconstruction, link prediction, and attributed latent resampling
+- **Attributed Network Pipeline**: Cora preprocessing, LSM network inference, attribute-side inference, reconstruction, link prediction, and attributed latent resampling
 - **Baseline Methods**: GRAN, VGAE, and EDGE implementations for comparison
 - **Multiple Datasets**: Support for DBLP, YouTube, Yelp, PolBlogs, and Cora
 
@@ -76,6 +76,12 @@ cd SyNGLER/Attribute
 python prepare_cora.py
 ```
 
+#### Build Attribute Inference Outputs
+```bash
+cd SyNGLER/Attribute
+python attribute_inference.py --r 5
+```
+
 #### Evaluate Inference
 ```bash
 cd SyNGLER/Attribute
@@ -85,9 +91,9 @@ python run_cora.py
 #### Attributed Latent Resampling
 ```bash
 cd SyNGLER/Attribute
-python resample_latents_bootstrap.py
-python resample_latents_diffusion.py
-python resample_latents.py
+python resample_latents_bootstrap.py --r 5
+python resample_latents_diffusion.py --r 5
+python resample_latents.py --r 5
 ```
 
 ### 3. Baseline Methods
@@ -132,8 +138,10 @@ SyNGLER/
 ├── SyNGLER/                    # Main SyNGLER implementation
 │   ├── Attribute/              # Attributed-network pipeline for Cora
 │   │   ├── prepare_cora.py     # Cora download, preprocessing, and latent inference
+│   │   ├── attribute_inference.py # Build cora_{r}.npz from saved LSM runs
 │   │   ├── run_cora.py         # Reconstruction and link-prediction evaluation
-│   │   ├── latent_inference.py # Core attributed latent inference
+│   │   ├── lsm_backend.py      # LSM backend for Cora inference
+│   │   ├── lsm_inference.py    # LSM/PGD inference wrapper for Cora
 │   │   ├── resample_latents_bootstrap.py # Bootstrap attributed resampling
 │   │   ├── resample_latents_diffusion.py # Forest-diffusion attributed resampling
 │   │   └── resample_latents.py # Score-based latent resampling
@@ -199,7 +207,8 @@ Each dataset is stored in `datasets/{dataset_name}/` with:
 
 For Cora, the repository also stores:
 - `source/`: Raw downloaded dataset files
-- `generator/cora.npz`: Processed sparse graph, attributes, labels, and inferred latent quantities
+- `generator/cora.npz`: Processed sparse graph, attributes, labels, and network-side LSM outputs
+- `generator/cora_{r}.npz`: Attribute inference outputs built from saved `datasets/cora/lsm/r=*/cora.pkl` runs
 - `run/resamples_bootstrap/`, `run/resamples_diffusion/`, `run/resamples/`: Attributed latent resampling outputs
 
 

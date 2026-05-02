@@ -7,7 +7,7 @@ import numpy as np
 import scipy.sparse as sp
 from scipy.sparse.csgraph import connected_components
 
-from latent_inference import inference_all_in_one
+from lsm_inference import fit_lsm
 
 
 DEFAULT_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -101,14 +101,11 @@ def save_processed_data(A, X, y, inference_res, out_path):
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     A_csr = A.tocsr()
 
-    Z12 = inference_res["Z12hat"]
-    Z3 = inference_res["Z3hat"]
-    L = inference_res["Lhat"]
-    mu = inference_res["mu_hat"]
-    alpha = inference_res["alpha_hat"]
-
-    if Z3 is None:
-        Z3 = np.array([])
+    Z12 = inference_res["model_Z"]
+    alpha = inference_res["model_alpha"]
+    Z3 = np.array([])
+    L = np.zeros((X.shape[1], 0), dtype=np.float32)
+    mu = np.mean(X, axis=0).astype(np.float32)
 
     np.savez(
         out_path,
@@ -123,8 +120,14 @@ def save_processed_data(A, X, y, inference_res, out_path):
         L=L,
         mu=mu,
         alpha=alpha,
-        num_z1=inference_res["Num_Z1"],
-        num_z3=inference_res["Num_Z3"],
+        num_z1=Z12.shape[1],
+        num_z3=0,
+        model_sparsity=inference_res["model_sparsity"],
+        converged=inference_res["converged"],
+        lsm_r=inference_res["r"],
+        lsm_seed=inference_res["seed"],
+        lsm_eta_0=inference_res["eta_0"],
+        lsm_tau=inference_res["tau"],
     )
     print(f"Saved processed data to {out_path}")
 
@@ -137,12 +140,13 @@ def parse_args():
         default=DEFAULT_PROCESSED_PATH,
         help="Path to the processed .npz output.",
     )
-    parser.add_argument(
-        "--variance-target",
-        type=float,
-        default=0.8,
-        help="Variance target used by latent dimension selection.",
-    )
+    parser.add_argument("--r", type=int, default=5, help="Latent dimension for LSM inference.")
+    parser.add_argument("--seed", type=int, default=0, help="Random seed for LSM inference.")
+    parser.add_argument("--eta-0", type=float, default=0.1, help="Base learning-rate scale for LSM PGD.")
+    parser.add_argument("--tau", type=float, default=0.0, help="SVD threshold used in LSM initialization.")
+    parser.add_argument("--use-gpu", action="store_true", help="Use CuPy GPU acceleration when available.")
+    parser.add_argument("--covariate-dim", type=int, default=2, help="Dummy covariate dimension used by LSM backend.")
+    parser.add_argument("--n-iter", type=int, default=500000, help="Maximum PGD iterations for LSM inference.")
     return parser.parse_args()
 
 
@@ -155,9 +159,17 @@ def main():
     A_lcc, X_lcc, y_lcc = largest_connected_component(A, X, y)
     print(f"LCC Cora: n={A_lcc.shape[0]}, p={X_lcc.shape[1]}, nnz(A)={A_lcc.nnz}")
 
-    dat = {"A": A_lcc, "Y": X_lcc, "n": A_lcc.shape[0], "p": X_lcc.shape[1]}
-    print("Running latent inference ...")
-    res = inference_all_in_one(dat, variance_target=args.variance_target, use_sparse=True)
+    print("Running LSM inference ...")
+    res = fit_lsm(
+        A_lcc.toarray(),
+        r=args.r,
+        seed=args.seed,
+        eta_0=args.eta_0,
+        tau=args.tau,
+        use_gpu=args.use_gpu,
+        covariate_dim=args.covariate_dim,
+        n_iter=args.n_iter,
+    )
     save_processed_data(A_lcc, X_lcc, y_lcc, res, out_path=args.output)
 
 

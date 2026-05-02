@@ -11,20 +11,25 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from SyNGLER.utils.score_sde import ScoreSDE, generate_samples
+from resample_io import (
+    DEFAULT_DATASET_ROOT,
+    default_attr_input_path,
+    load_attribute_latents,
+    save_resampled_latents,
+    split_latents,
+    stack_latents,
+)
 
 
-DEFAULT_ROOT = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_REPO_ROOT = os.path.abspath(os.path.join(DEFAULT_ROOT, "..", ".."))
-DEFAULT_DATASET_ROOT = os.path.join(DEFAULT_REPO_ROOT, "datasets", "cora")
-DEFAULT_DATA_PATH = os.path.join(DEFAULT_DATASET_ROOT, "generator", "cora.npz")
 DEFAULT_SAMPLE_DIR = os.path.join(DEFAULT_DATASET_ROOT, "run", "resamples")
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Resample inferred Cora latent factors.")
-    parser.add_argument("--input", default=DEFAULT_DATA_PATH, help="Processed Cora .npz path.")
+    parser = argparse.ArgumentParser(description="Resample attributed Cora latents with Score-based SDE.")
+    parser.add_argument("--r", type=int, default=5, help="Latent dimension r used to build cora_{r}.npz.")
+    parser.add_argument("--input", default=None, help="Attribute inference .npz path. Defaults to datasets/cora/generator/cora_{r}.npz.")
     parser.add_argument("--output-dir", default=DEFAULT_SAMPLE_DIR, help="Directory for generated samples.")
-    parser.add_argument("--num-samples", type=int, default=10, help="Number of resampled graph copies to generate.")
+    parser.add_argument("--num-samples", type=int, default=10, help="Number of resampled copies to generate.")
     parser.add_argument("--epochs", type=int, default=5000, help="Training epochs for the score model.")
     parser.add_argument("--batch-size", type=int, default=256, help="Training batch size.")
     parser.add_argument("--lr", type=float, default=1e-3, help="Training learning rate.")
@@ -32,31 +37,33 @@ def parse_args():
     return parser.parse_args()
 
 
+def choose_device():
+    if torch.backends.mps.is_available():
+        return "mps"
+    if torch.cuda.is_available():
+        return "cuda"
+    return "cpu"
+
+
 def main():
     args = parse_args()
-    data = np.load(args.input, allow_pickle=True)
+    input_path = args.input or default_attr_input_path(args.r)
 
-    Z12 = data["Z12"]
-    Z3 = data["Z3"]
-    alpha = data["alpha"]
+    data, z1, z2, alpha = load_attribute_latents(input_path)
+    matrix = stack_latents(z1, z2, alpha)
 
-    alpha_reshaped = alpha.reshape(-1, 1)
-    if Z3.size > 0:
-        X = np.concatenate([Z12, Z3, alpha_reshaped], axis=1)
-    else:
-        X = np.concatenate([Z12, alpha_reshaped], axis=1)
+    print(f"Loaded {input_path}")
+    print(f"Z_1 shape: {z1.shape}")
+    print(f"Z_2 shape: {z2.shape}")
+    print(f"alpha shape: {alpha.shape}")
+    print(f"Training matrix shape: {matrix.shape}")
 
-    if torch.backends.mps.is_available():
-        device = "mps"
-    elif torch.cuda.is_available():
-        device = "cuda"
-    else:
-        device = "cpu"
+    device = choose_device()
+    print(f"Using device: {device}")
 
-    model = ScoreSDE(input_dim=X.shape[1], hidden_dims=[256, 256, 256], device=device)
-    X_tensor = torch.from_numpy(X).float()
+    model = ScoreSDE(input_dim=matrix.shape[1], hidden_dims=[256, 256, 256], device=device)
     loss_history = model.train(
-        data=X_tensor,
+        data=torch.from_numpy(matrix).float(),
         n_epochs=args.epochs,
         batch_size=args.batch_size,
         lr=args.lr,
@@ -65,28 +72,19 @@ def main():
     print(f"Final loss: {loss_history[-1]:.6f}")
 
     os.makedirs(args.output_dir, exist_ok=True)
-    n_nodes = X.shape[0]
-    d12 = Z12.shape[1]
-    d3 = Z3.shape[1] if Z3.size > 0 else 0
+    z1_dim = z1.shape[1]
+    z2_dim = z2.shape[1] if z2.ndim == 2 and z2.size > 0 else 0
 
     for i in range(args.num_samples):
-        sample = generate_samples(model=model, n_samples=n_nodes, n_steps=args.steps, return_numpy=True)
-        output_path = os.path.join(args.output_dir, f"rep{i}.npz")
-
-        Z12_resampled = sample[:, :d12]
-        if d3 > 0:
-            Z3_resampled = sample[:, d12 : d12 + d3]
-            alpha_resampled = sample[:, d12 + d3 :]
-        else:
-            Z3_resampled = np.array([])
-            alpha_resampled = sample[:, d12:]
-
-        np.savez(
-            output_path,
-            Z12=Z12_resampled,
-            Z3=Z3_resampled,
-            alpha=alpha_resampled.flatten(),
+        sample = generate_samples(
+            model=model,
+            n_samples=matrix.shape[0],
+            n_steps=args.steps,
+            return_numpy=True,
         )
+        z1_resampled, z2_resampled, alpha_resampled = split_latents(sample, z1_dim, z2_dim)
+        output_path = os.path.join(args.output_dir, f"resample_{i + 1}.npz")
+        save_resampled_latents(output_path, z1_resampled, z2_resampled, alpha_resampled)
         print(f"Saved {output_path}")
 
     model_path = os.path.join(args.output_dir, "score_sde_model.pt")

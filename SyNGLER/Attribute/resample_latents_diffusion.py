@@ -9,26 +9,26 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from SyNGLER.utils.diffusion import (
-    build_forest_model_from_matrix,
-    generate_matrix_replicates,
-    split_latent_matrix,
-    stack_latent_blocks,
+from SyNGLER.utils.diffusion import build_forest_model_from_matrix
+from resample_io import (
+    DEFAULT_DATASET_ROOT,
+    default_attr_input_path,
+    load_attribute_latents,
+    save_resampled_latents,
+    split_latents,
+    stack_latents,
 )
 
 
-DEFAULT_ROOT = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_REPO_ROOT = os.path.abspath(os.path.join(DEFAULT_ROOT, "..", ".."))
-DEFAULT_DATASET_ROOT = os.path.join(DEFAULT_REPO_ROOT, "datasets", "cora")
-DEFAULT_DATA_PATH = os.path.join(DEFAULT_DATASET_ROOT, "generator", "cora.npz")
 DEFAULT_SAMPLE_DIR = os.path.join(DEFAULT_DATASET_ROOT, "run", "resamples_diffusion")
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Resample inferred Cora latent factors with forest diffusion.")
-    parser.add_argument("--input", default=DEFAULT_DATA_PATH, help="Processed Cora .npz path.")
+    parser = argparse.ArgumentParser(description="Resample attributed Cora latents with ForestDiffusion.")
+    parser.add_argument("--r", type=int, default=5, help="Latent dimension r used to build cora_{r}.npz.")
+    parser.add_argument("--input", default=None, help="Attribute inference .npz path. Defaults to datasets/cora/generator/cora_{r}.npz.")
     parser.add_argument("--output-dir", default=DEFAULT_SAMPLE_DIR, help="Directory for generated samples.")
-    parser.add_argument("--num-samples", type=int, default=10, help="Number of resampled graph copies to generate.")
+    parser.add_argument("--num-samples", type=int, default=10, help="Number of resampled copies to generate.")
     parser.add_argument("--seed", type=int, default=0, help="Random seed.")
     parser.add_argument("--n_t", type=int, default=100, help="Diffusion time steps.")
     parser.add_argument("--duplicate_K", type=int, default=100, help="Forest diffusion duplication factor.")
@@ -44,17 +44,11 @@ def parse_args():
 
 def main():
     args = parse_args()
-    data = np.load(args.input, allow_pickle=True)
-    Z12 = data["Z12"]
-    Z3 = data["Z3"]
-    alpha = data["alpha"]
+    input_path = args.input or default_attr_input_path(args.r)
 
-    blocks = [("Z12", Z12)]
-    if Z3.size > 0:
-        blocks.append(("Z3", Z3))
-    blocks.append(("alpha", alpha))
+    _, z1, z2, alpha = load_attribute_latents(input_path)
+    matrix = stack_latents(z1, z2, alpha)
 
-    X, widths = stack_latent_blocks(blocks)
     xgb_params = dict(
         max_depth=args.max_depth,
         n_estimators=args.n_estimators,
@@ -65,7 +59,7 @@ def main():
         subsample=args.subsample,
     )
     model = build_forest_model_from_matrix(
-        X,
+        matrix,
         seed=args.seed,
         n_t=args.n_t,
         duplicate_K=args.duplicate_K,
@@ -73,16 +67,15 @@ def main():
     )
 
     os.makedirs(args.output_dir, exist_ok=True)
-    samples = generate_matrix_replicates(model, X, args.output_dir, reps=args.num_samples)
-    for i, sample in enumerate(samples):
-        parts = split_latent_matrix(sample, widths)
-        output_path = os.path.join(args.output_dir, f"rep{i}.npz")
-        np.savez(
-            output_path,
-            Z12=parts["Z12"],
-            Z3=parts.get("Z3", np.array([])),
-            alpha=parts["alpha"],
-        )
+    z1_dim = z1.shape[1]
+    z2_dim = z2.shape[1] if z2.ndim == 2 and z2.size > 0 else 0
+
+    for i in range(args.num_samples):
+        xy_fake = model.generate(batch_size=matrix.shape[0])
+        sample = xy_fake[:, :-1]
+        z1_resampled, z2_resampled, alpha_resampled = split_latents(sample, z1_dim, z2_dim)
+        output_path = os.path.join(args.output_dir, f"resample_{i + 1}.npz")
+        save_resampled_latents(output_path, z1_resampled, z2_resampled, alpha_resampled)
         print(f"Saved {output_path}")
 
 
