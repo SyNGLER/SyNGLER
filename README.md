@@ -1,14 +1,15 @@
 # SyNGLER: Efficient Synthetic Network Generation via Latent Embedding Reconstruction
 
-This repository contains the implementation of **SyNGLER** (Efficient Synthetic Network Generation via Latent Embedding Reconstruction) along with baseline methods including GRAN, VGAE, and EDGE for graph generation tasks.
+This repository contains the implementation of **SyNGLER** (Efficient Synthetic Network Generation via Latent Embedding Reconstruction) along with baseline methods including GRAN, VGAE, and EDGE for graph generation tasks. It also includes an attributed-network pipeline for the Cora dataset with latent inference, evaluation, and multiple resampling backends.
 
 ## Overview
 
 SyNGLER is a novel approach for generating synthetic networks using latent embedding reconstruction combined with advanced sampling techniques. The repository provides a comprehensive framework for:
 
 - **SyNGLER Method**: Our proposed approach using latent embedding reconstruction with diffusion and resampling techniques
+- **Attributed Network Pipeline**: Cora preprocessing, joint latent inference, reconstruction, link prediction, and attributed latent resampling
 - **Baseline Methods**: GRAN, VGAE, and EDGE implementations for comparison
-- **Multiple Datasets**: Support for DBLP, YouTube, Yelp, and PolBlogs datasets
+- **Multiple Datasets**: Support for DBLP, YouTube, Yelp, PolBlogs, and Cora
 
 ## Installation
 
@@ -46,6 +47,11 @@ For SyNGLER:
 pip install ForestDiffusion  # For diffusion-based sampling
 ```
 
+For the attributed-network pipeline:
+```bash
+pip install matplotlib
+```
+
 ## Usage
 
 ### 1. SyNGLER Method
@@ -62,7 +68,29 @@ cd SyNGLER/Res
 python res_real.py --dataset dblp
 ```
 
-### 2. Baseline Methods
+### 2. Attributed Network Pipeline (Cora)
+
+#### Prepare Cora
+```bash
+cd SyNGLER/Attribute
+python prepare_cora.py
+```
+
+#### Evaluate Inference
+```bash
+cd SyNGLER/Attribute
+python run_cora.py
+```
+
+#### Attributed Latent Resampling
+```bash
+cd SyNGLER/Attribute
+python resample_latents_bootstrap.py
+python resample_latents_diffusion.py
+python resample_latents.py
+```
+
+### 3. Baseline Methods
 
 #### GRAN
 ```bash
@@ -79,14 +107,14 @@ python real_data_train.py --dataset dblp --data_path ../datasets/dblp/generator/
 #### EDGE
 Please refer to the original [EDGE repository](https://github.com/ehoogeboom/multinomial_diffusion) for detailed usage instructions and examples.
 
-### 3. Latent Space Model Training
+### 4. Latent Space Model Training
 
 ```bash
 cd Latent-Space-Model/simulated_data
 python run.py --config ../config/default.json
 ```
 
-### 4. Evaluation Framework
+### 5. Evaluation Framework
 
 To evaluate and compare different methods:
 
@@ -105,8 +133,10 @@ SyNGLER/
 │   ├── Attribute/              # Attributed-network pipeline for Cora
 │   │   ├── prepare_cora.py     # Cora download, preprocessing, and latent inference
 │   │   ├── run_cora.py         # Reconstruction and link-prediction evaluation
-│   │   ├── resample_latents.py # Score-based latent resampling
 │   │   ├── latent_inference.py # Core attributed latent inference
+│   │   ├── resample_latents_bootstrap.py # Bootstrap attributed resampling
+│   │   ├── resample_latents_diffusion.py # Forest-diffusion attributed resampling
+│   │   └── resample_latents.py # Score-based latent resampling
 │   ├── Diff/                   # Diffusion-based sampling
 │   │   ├── sampler_real.py     # Real dataset sampling
 │   │   └── sampler_sim.py      # Simulated dataset sampling
@@ -137,6 +167,10 @@ SyNGLER/
 │   ├── config/                 # Configuration files
 │   └── simulated_data/         # Data generation
 ├── datasets/                   # Dataset storage
+│   ├── cora/                   # Cora attributed-network dataset
+│   │   ├── source/             # Raw downloaded Cora files
+│   │   ├── generator/          # Processed Cora latent/inference data
+│   │   └── run/                # Evaluation and attributed resampling outputs
 │   ├── dblp/                   # DBLP dataset
 │   ├── youtube/                # YouTube dataset
 │   ├── yelp/                   # Yelp dataset
@@ -151,16 +185,22 @@ SyNGLER/
 
 ## Datasets
 
-The repository supports four real-world datasets:
+The repository supports five real-world datasets:
 
 - **DBLP**: Academic collaboration network
 - **YouTube**: Social network data
 - **Yelp**: Business review network
 - **PolBlogs**: Political blog network
+- **Cora**: Citation network with node attributes
 
 Each dataset is stored in `datasets/{dataset_name}/` with:
 - `generator/`: Original data files
 - `run/`: Processed results for different latent dimensions
+
+For Cora, the repository also stores:
+- `source/`: Raw downloaded dataset files
+- `generator/cora.npz`: Processed sparse graph, attributes, labels, and inferred latent quantities
+- `run/resamples_bootstrap/`, `run/resamples_diffusion/`, `run/resamples/`: Attributed latent resampling outputs
 
 
 
