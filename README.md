@@ -178,6 +178,7 @@ SyNGLER/
 │   ├── cora/                   # Cora attributed-network dataset
 │   │   ├── source/             # Raw downloaded Cora files
 │   │   ├── generator/          # Processed Cora latent/inference data
+│   │   ├── lsm/                # Saved network-side LSM fits
 │   │   └── run/                # Evaluation and attributed resampling outputs
 │   ├── dblp/                   # DBLP dataset
 │   ├── youtube/                # YouTube dataset
@@ -209,6 +210,7 @@ For Cora, the repository also stores:
 - `source/`: Raw downloaded dataset files
 - `generator/cora.npz`: Processed sparse graph, attributes, labels, and network-side LSM outputs
 - `generator/cora_{r}.npz`: Attribute inference outputs built from saved `datasets/cora/lsm/r=*/cora.pkl` runs
+- `lsm/r=*/cora.pkl`: Saved LSM fits used by the attribute-side inference step
 - `run/resamples_bootstrap/`, `run/resamples_diffusion/`, `run/resamples/`: Attributed latent resampling outputs
 
 
