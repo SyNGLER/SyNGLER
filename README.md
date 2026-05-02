@@ -102,6 +102,11 @@ The evaluation framework provides comprehensive analysis using multiple network 
 ```
 SyNGLER/
 ├── SyNGLER/                    # Main SyNGLER implementation
+│   ├── Attribute/              # Attributed-network pipeline for Cora
+│   │   ├── prepare_cora.py     # Cora download, preprocessing, and latent inference
+│   │   ├── run_cora.py         # Reconstruction and link-prediction evaluation
+│   │   ├── resample_latents.py # Score-based latent resampling
+│   │   ├── latent_inference.py # Core attributed latent inference
 │   ├── Diff/                   # Diffusion-based sampling
 │   │   ├── sampler_real.py     # Real dataset sampling
 │   │   └── sampler_sim.py      # Simulated dataset sampling
@@ -109,7 +114,10 @@ SyNGLER/
 │   │   ├── res_real.py         # Real dataset resampling
 │   │   └── res_sim.py          # Simulated dataset resampling
 │   └── utils/                  # Utility functions
-│       └── SyNG_source.py      # Core SyNGLER utilities
+│       ├── SyNG_source.py      # Core SyNGLER utilities
+│       ├── diffusion.py        # Shared diffusion helpers
+│       ├── resampling.py       # Shared bootstrap/resampling helpers
+│       └── score_sde.py        # Shared score-based latent generator
 ├── GRAN/                       # GRAN baseline implementation
 │   ├── config/                 # Configuration files
 │   ├── model/                  # Model definitions

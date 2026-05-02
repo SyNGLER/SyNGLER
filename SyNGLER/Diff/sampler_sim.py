@@ -1,111 +1,48 @@
-""" 
-Please specify the config csv path for running. For example:
-    python sampler.py --grid_csv ../../Latent-Space-Model/config/run_n={n}_r={r}_sparse={sparse_level}.csv
-"""
-import os
-from pathlib import Path
-try:
-    BASE_DIR = Path(__file__).resolve().parent
-except NameError:
-    BASE_DIR = Path.cwd()
-os.chdir(BASE_DIR)
-print(f"[cwd set] {BASE_DIR}")
-
-import csv
-import pickle
-import numpy as np
-from tqdm import tqdm
 import argparse
+import os
 import sys
+from pathlib import Path
 
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
-from ForestDiffusion import ForestDiffusionModel as ForestFlowModel
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
-GEN_BASE = "../../datasets/run"
-SAVE_BASE = "../../synthetic/simulation/Diff-sample"
-N_T = 50
-DUP_K = 100
-SAMPLES_PER_DATA = 200
-XGB_KW = dict(
-    max_depth=7,
-    n_estimators=100,
-    eta=0.3,
-    tree_method="hist",
-    reg_lambda=0.0,
-    reg_alpha=0.0,
-    subsample=1.0,
-    n_jobs=-1,
-)
-
-def load_run_pkl(n, r, sparse_level, seed):
-    dir_ = os.path.join(GEN_BASE, f"n={n}_r={r}_sparse={sparse_level}")
-    fn = os.path.join(dir_, f"seed={seed}.pkl")
-    with open(fn, "rb") as f:
-        results = pickle.load(f)
-    Z = np.array(results["model_Z"])
-    alpha = np.array(results["model_alpha"]).reshape(-1, 1)
-    X = np.hstack([Z, alpha])
-    return X
-
-def ensure_dir(path):
-    os.makedirs(path, exist_ok=True)
-
-def main(grid_csv):
-    jobs = []
-    with open(grid_csv, "r", newline="") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            n = int(row["n"])
-            r = int(row["r"])
-            seed = int(row["seed"])
-            sparse_level = float(row.get("sparse_level", 0.0))
-            jobs.append((n, r, seed, sparse_level))
-
-    for (n, r, seed, sparse_level) in tqdm(jobs, desc="Datasets", unit="job"):
-        X = load_run_pkl(n, r, sparse_level, seed)
-        y_dummy = np.zeros(X.shape[0])
-
-        forest_model = ForestFlowModel(
-            X,
-            label_y=y_dummy,
-            n_t=N_T,
-            duplicate_K=DUP_K,
-            bin_indexes=[],
-            cat_indexes=[],
-            int_indexes=[],
-            diffusion_type="vp",
-            seed=seed,
-            **XGB_KW,
-        )
-
-        out_dir = os.path.join(
-            SAVE_BASE,
-            f"n={n}_r={r}_sparse={sparse_level}/seed={seed}"
-        )
-        ensure_dir(out_dir)
-
-        Xy_fake_all = forest_model.generate(batch_size=X.shape[0] * SAMPLES_PER_DATA)
-        for b_id in range(SAMPLES_PER_DATA):
-            start = b_id * X.shape[0]
-            end = (b_id + 1) * X.shape[0]
-            Xy_fake_ = Xy_fake_all[start:end, :]
-
-            x_fake = Xy_fake_[:, :-1]  # drop dummy label
-            Z_fake = x_fake[:, :r]
-            alpha_fake = x_fake[:, r:r+1]
-
-            np.savez(
-                os.path.join(out_dir, f"rep{b_id}.npz"),
-                Z=Z_fake,
-                alpha=alpha_fake
-            )
-
-        tqdm.write(f"[n={n}, r={r}, seed={seed}] saved {SAMPLES_PER_DATA} reps to: {out_dir}")
+from SyNGLER.utils.diffusion import run_simulation_grid
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--grid_csv", type=str, required=True,
-                        help="Path to CSV file containing n,r,seed,sparse_level")
+    parser.add_argument("--grid_csv", type=str, required=True, help="Path to CSV file containing n,r,seed,sparse_level")
+    parser.add_argument("--gen-base", default="../../datasets/run")
+    parser.add_argument("--save-base", default="../../synthetic/simulation/Diff-sample")
+    parser.add_argument("--n_t", type=int, default=50)
+    parser.add_argument("--duplicate_K", type=int, default=100)
+    parser.add_argument("--samples_per_data", type=int, default=200)
+    parser.add_argument("--max_depth", type=int, default=7)
+    parser.add_argument("--n_estimators", type=int, default=100)
+    parser.add_argument("--eta", type=float, default=0.3)
+    parser.add_argument("--tree_method", type=str, default="hist")
+    parser.add_argument("--reg_lambda", type=float, default=0.0)
+    parser.add_argument("--reg_alpha", type=float, default=0.0)
+    parser.add_argument("--subsample", type=float, default=1.0)
     args = parser.parse_args()
-    main(args.grid_csv)
+    xgb_params = dict(
+        max_depth=args.max_depth,
+        n_estimators=args.n_estimators,
+        eta=args.eta,
+        tree_method=args.tree_method,
+        reg_lambda=args.reg_lambda,
+        reg_alpha=args.reg_alpha,
+        subsample=args.subsample,
+        n_jobs=-1,
+    )
+    run_simulation_grid(
+        args.grid_csv,
+        args.gen_base,
+        args.save_base,
+        args.n_t,
+        args.duplicate_K,
+        args.samples_per_data,
+        xgb_params,
+    )

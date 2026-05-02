@@ -1,59 +1,37 @@
-import numpy as np
-import pickle
-import os
-from pathlib import Path
-try:
-    BASE_DIR = Path(__file__).resolve().parent
-except NameError:
-    BASE_DIR = Path.cwd()
-os.chdir(BASE_DIR)
-print(f"[cwd set] {BASE_DIR}")
+import argparse
 import sys
-sys.path.append("../utils")
-from SyNG_source import bootstrap_alpha_Z
-from tqdm import tqdm
+from pathlib import Path
 
-N_RANGE = [500, 1000, 1500]
-R_RANGE = [2, 3, 4]
-sparse_level = 0.0
-SEED_RANGE = range(0, 200)
-REP_RANGE = range(0, 200)
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
-for n in N_RANGE:
-    for r in R_RANGE:
-        input_base_path = f'../../datasets/simulation/run/n={n}_r={r}_sparse={sparse_level}/'
-        output_base_path = f'../../synthetic/simulation/Res-sample/n={n}_r={r}_sparse={sparse_level}/'
+from SyNGLER.utils.resampling import run_simulation_bootstrap
 
-        for seed in SEED_RANGE:
-            input_file_path = os.path.join(input_base_path, f'seed={seed}.pkl')
-            seed_output_path = os.path.join(output_base_path, f'seed={seed}')
-            os.makedirs(seed_output_path, exist_ok=True)
 
-            try:
-                with open(input_file_path, 'rb') as f:
-                    result = pickle.load(f)
-                
-                model_alpha = np.array(result["model_alpha"]).reshape(-1, 1)
-                model_Z = np.array(result["model_Z"])
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data-root", default="../../datasets/simulation/run")
+    parser.add_argument("--out-root", default="../../synthetic/simulation/Res-sample")
+    parser.add_argument("--n-values", type=int, nargs="+", default=[500, 1000, 1500])
+    parser.add_argument("--r-values", type=int, nargs="+", default=[2, 3, 4])
+    parser.add_argument("--sparse-level", type=float, default=0.0)
+    parser.add_argument("--seed-start", type=int, default=0)
+    parser.add_argument("--seed-end", type=int, default=200)
+    parser.add_argument("--reps", type=int, default=200)
+    args = parser.parse_args()
 
-                print(f"Processing seed={seed}, with data shape alpha={model_alpha.shape}, Z={model_Z.shape}")
-                
-                for rep in REP_RANGE:
-                    np.random.seed(seed+rep) 
-                    alpha_bootstrap, Z_bootstrap = bootstrap_alpha_Z(model_alpha, model_Z, batch=1)
-                    Z_processed = Z_bootstrap.squeeze()
-                    alpha_processed = alpha_bootstrap.squeeze()
-                    output_file_path = os.path.join(seed_output_path, f'rep{rep}.npz')
-                    np.savez(output_file_path, alpha=alpha_processed, Z=Z_processed)
-                    
-                    if (rep + 1) % 10 == 0 or rep == REP_RANGE[-1]:
-                        print(f"Saved rep={rep} to {output_file_path}")
+    run_simulation_bootstrap(
+        args.data_root,
+        args.out_root,
+        args.n_values,
+        args.r_values,
+        args.sparse_level,
+        range(args.seed_start, args.seed_end),
+        range(args.reps),
+    )
+    print("\nBootstrap process completed.")
 
-            except FileNotFoundError:
-                print(f"Warning: File not found at {input_file_path}. Skipping this seed.")
-            except KeyError:
-                print(f"Error: The pkl file for seed={seed} does not contain the expected keys 'model_Z' or 'model_alpha'. Skipping.")
-            except Exception as e:
-                print(f"An unexpected error occurred while processing seed={seed}: {e}. Skipping.")
 
-print("\nBootstrap process completed.")
+if __name__ == "__main__":
+    main()
